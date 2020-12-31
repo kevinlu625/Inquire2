@@ -1,0 +1,34 @@
+// Put these outside of view did load:
+
+//REPLACE "NODATA.JPG" with no data image name
+  let noDataImage = UIImage(named: "nodata.jpg")
+    let myImageView:UIImageView = UIImageView()
+    
+    //EDIT THIS FOR LOCATION
+    let myView = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height))
+    
+    //CALL THESE FUNCTIONS TO ADD AND REMOVE THE CONTENT THING 
+    func addNoContent() {
+        view.addSubview(myView)
+        view.addSubview(myImageView)
+    }
+    
+    func removeNoContent() {
+        myView.removeFromSuperview()
+        myImageView.removeFromSuperview()
+    }
+    
+    
+    
+    //PUT IN VIEW DID LOAD:
+    
+    // change width and heights and centering depending what u need
+        myImageView.contentMode = UIView.ContentMode.scaleAspectFit
+        myImageView.frame.size.width = UIScreen.main.bounds.width
+        myImageView.frame.size.height = UIScreen.main.bounds.height
+        myImageView.center = self.view.center
+        myImageView.image = noDataImage
+        
+        
+        
+   
