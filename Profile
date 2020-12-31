@@ -1,0 +1,770 @@
+//
+//  ViewController.swift
+//  InquireProfile
+//
+//  Created by Arvin Zhang on 12/26/20.
+//
+
+import UIKit
+import Firebase
+import GoogleSignIn
+
+class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+
+    // Connect these
+
+    
+    
+    @IBOutlet weak var questionsButton: UIButton!
+    
+    @IBOutlet weak var answersButton: UIButton!
+
+    @IBOutlet weak var profileImg: UIImageView!
+    
+    @IBOutlet weak var rankingImg: UIImageView!
+
+    @IBOutlet var username: UILabel!
+    @IBOutlet weak var logOutButton: UIButton!
+    
+    var currentPFP = ""
+    // edit
+    var rank = ""
+    
+    var status = "question"
+    
+    let noDataImage = UIImage(named: "nodata.jpg")
+    let myImageView:UIImageView = UIImageView()
+    let myView = UIView(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height))
+    let button = UIButton(frame: CGRect(x: 5, y: 50, width: 100, height: 50))
+    
+    
+    func addNoContent() {
+        view.addSubview(myView)
+        view.addSubview(myImageView)
+        view.addSubview(button)
+    }
+    
+    func removeNoContent() {
+        myView.removeFromSuperview()
+        myImageView.removeFromSuperview()
+        button.removeFromSuperview()
+    }
+    
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        setUpElements()
+        
+        
+        // need none image to be same color image as background color (basically invisable)
+        
+        
+        
+        
+        myView.backgroundColor = .white
+
+        myImageView.contentMode = UIView.ContentMode.scaleAspectFit
+        myImageView.frame.size.width = UIScreen.main.bounds.width
+        myImageView.frame.size.height = UIScreen.main.bounds.height
+        myImageView.center = self.view.center
+        myImageView.image = noDataImage
+        
+
+
+        button.addTarget(self, action: #selector(buttonAction(_:)), for: .touchUpInside)
+        
+        button.setTitleColor(.systemBlue, for: .normal)
+        button.setTitle("< Back", for: .normal)
+
+        // Do any additional setup after loading the view.
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        print("this runs")
+        
+        rankingImg.alpha = 0
+        
+        
+        if rank == "first" {
+            rankingImg.alpha = 1
+
+            rankingImg.image = UIImage(named:"first")
+
+        } else if rank == "second" {
+            rankingImg.alpha = 1
+
+            rankingImg.image = UIImage(named:"second")
+        } else if rank == "third" {
+            rankingImg.alpha = 1
+
+            rankingImg.image = UIImage(named:"third")
+        }
+        
+        
+        
+        print(UserData.justChangedPFP )
+        print(UserData.currentPFP)
+        if UserData.justChangedPFP && UserData.currentPFP != ""
+        {
+            
+            self.profileImg.image = UIImage(named: UserData.currentPFP)
+            self.profileImg.layer.cornerRadius = self.profileImg.frame.size.width / 2
+            self.profileImg.clipsToBounds = true
+            UserData.justChangedPFP = false
+            UserData.currentPFP = ""
+            
+        }
+        else
+        {
+            self.setUpElements()
+        }
+        
+    }
+    
+    
+    @IBAction func didTapQuestions(_ sender: Any) {
+        questionsButton.setTitleColor(UIColor.systemBlue, for: .normal)
+        answersButton.setTitleColor(UIColor.lightGray, for: .normal)
+        
+        status = "question"
+        
+        profileTableView.reloadData()
+        
+        
+    }
+    
+    
+    
+    
+    @IBAction func didTapAnswers(_ sender: Any) {
+        questionsButton.setTitleColor(UIColor.lightGray, for: .normal)
+        answersButton.setTitleColor(UIColor.systemBlue, for: .normal)
+        
+        status = "answer"
+        
+        profileTableView.reloadData()
+
+    }
+    
+
+    @objc func buttonAction(_ sender:UIButton!) {
+        print("Button tapped")
+        removeNoContent()
+        // perform segue back
+        
+    }
+    
+    
+    func setUpElements() {
+
+        let db = Firestore.firestore()
+        let user = Auth.auth().currentUser
+        let uid = user!.uid
+
+        let docRef = db.collection("users").document(uid)
+
+        docRef.getDocument { (document, error) in
+            if let document = document, document.exists {
+                let dataDictionary = document.data()!
+                let fullName = dataDictionary["username"] as! String
+                let picture = dataDictionary["profileImg"] as! String
+                UserData.currentUser = fullName
+                self.username.text = fullName
+                self.profileImg.image = UIImage(named: picture)
+                
+                profilePic.layer.cornerRadius = profilePic.frame.size.width/2
+                profilePic.layer.borderWidth = 3
+                profilePic.layer.borderColor = UIColor.lightGray.cgColor
+                self.profileImg.clipsToBounds = true
+                
+                
+                
+                
+            } else {
+                print("Document does not exist")
+            }
+        }
+
+    }
+    
+    
+    func transitionToStart() {
+
+        let storyboard = UIStoryboard(name: "Main", bundle: nil)
+        let mainTabBarController = storyboard.instantiateViewController(identifier: "startStoryBoard")
+
+        (UIApplication.shared.connectedScenes.first?.delegate as? SceneDelegate)?.changeRootViewController(mainTabBarController)
+    }
+    
+    // Connect this
+    @IBAction func logOutButtonTapped(_ sender: Any) {
+        
+        GIDSignIn.sharedInstance()?.signOut()
+        
+        let auth = Auth.auth()
+        do {
+            try auth.signOut()
+            transitionToStart()
+
+        } catch let signOutError as Error {
+            self.present(Utilities.createAlertController(title: "Error", message: signOutError.localizedDescription), animated: true, completion: nil)
+        }
+
+    }
+    
+    @IBAction func backFromModal(_ segue: UIStoryboardSegue) {
+
+        self.tabBarController?.selectedIndex = 1
+    }
+    
+    // what even is this
+    @IBAction func backtoProfile(_ segue: UIStoryboardSegue)
+         {
+            Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { (Timer) in
+                
+            
+           print("thidfs runs")
+                  print(UserData.justChangedPFP )
+                  print(UserData.currentPFP)
+                  if UserData.justChangedPFP && UserData.currentPFP != ""
+                  {
+                      
+                      self.profileImg.image = UIImage(named: UserData.currentPFP)
+                      self.profileImg.layer.cornerRadius = self.profileImg.frame.size.width / 2
+                      self.profileImg.clipsToBounds = true
+                      UserData.justChangedPFP = false
+                      UserData.currentPFP = ""
+                      
+                  }
+                Timer.invalidate()
+            }
+         }
+    
+    
+    
+    
+    if status == "question" {
+        lazy var refresher : UIRefreshControl =
+       {
+           let refreshControl = UIRefreshControl()
+           refreshControl.addTarget(self, action: #selector(requestData), for: .valueChanged)
+           return refreshControl
+       }()
+       @objc func requestData()
+       {
+        
+        genUserData()
+        
+           let deadline = DispatchTime.now() + .milliseconds(2000)
+           DispatchQueue.main.asyncAfter(deadline: deadline)
+           {
+               self.refresher.endRefreshing()
+           }
+           
+       }
+    
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        questionTexts.count
+    }
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+        return 225
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "myPastQuestion", for: indexPath) as! MyPastQuestionTableViewCell
+        cell.channelName.text = self.questionChannels[indexPath.row]
+        cell.questionText.text = self.questionTexts[indexPath.row]
+        cell.answerCount.text = self.questionAnswerNumbers[indexPath.row] as String
+        cell.datePosted.text = self.questionTimes[indexPath.row]
+        cell.answerCount.layer.cornerRadius = cell.answerCount.frame.height/2
+        cell.answerCount.clipsToBounds = true
+        
+        return cell
+    }
+        
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+            
+            myPastQuestionTableView.deselectRow(at: indexPath, animated: true)
+            print("deselect")
+            UserData.currentQuestion = questionTexts[indexPath.row]
+            UserData.currentChannel = questionChannels[indexPath.row]
+            performSegue(withIdentifier: "toAnswers", sender: self)
+        
+        
+    }
+
+    
+    
+    @IBOutlet weak var myPastQuestionTableView: UITableView!
+    lazy var functions = Functions.functions()
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        genUserData()
+        self.tabBarController?.delegate = self
+        myPastQuestionTableView.refreshControl = refresher
+        myPastQuestionTableView.delegate = self
+        myPastQuestionTableView.dataSource = self
+        
+
+    }
+    
+    var questionTexts: [String] = []
+    var questionPosters: [String] = []
+    var questionTimes: [String] = []
+    var questionChannels: [String] = []
+    var questionAnswerNumbers: [String] = []
+    var userData: [[String: Any]] = []
+    
+    func genUserData()
+    {
+         self.performSegue(withIdentifier: "pastQuestionsToLoading", sender: self)
+
+         questionTexts = []
+         questionPosters = []
+         questionTimes = []
+         questionChannels = []
+         questionAnswerNumbers = []
+
+         userData = []
+        self.myPastQuestionTableView.reloadData()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .short
+        dateFormatter.timeStyle = .short
+
+        let userID = UserData.currentUser
+        print(userID)
+        print("here is the user id")
+        functions.httpsCallable("genUserQuestions").call(["userName": userID])
+        { (Res, err) in
+            if let err = err as NSError?
+            {
+                if err.domain == FunctionsErrorDomain
+                {
+                    _ = err.localizedDescription
+                    _ = err.userInfo[FunctionsErrorDetailsKey]
+                }
+            }
+
+            if let user = (Res?.data as? [String: Any])?["questionList"] as? [[String: Any]]
+            {
+                self.userData = user
+                print(self.userData)
+            }
+            if (self.userData.count > 0)
+            {
+                
+                for number in 0...self.userData.count-1
+                {
+                    let creationTime = self.userData[number]["CreationTime"] as! [String: Double]
+                    let seconds = creationTime["_seconds"] as! Double+pow(creationTime["_nanoseconds"] as! Double, -9.0)
+                    let creationDate = NSDate(timeIntervalSince1970: seconds)
+                    let creationDateString = dateFormatter.string(from: creationDate as Date)
+                    if number <= self.questionTexts.count-1
+                    {
+                        self.questionTexts[number] = self.userData[number]["QuestionText"]  as! String
+                         self.questionTimes[number] = creationDateString
+                         self.questionChannels[number] =  self.userData[number]["ChannelName"] as! String
+                         self.questionPosters[number] = self.userData[number]["QuestionPoster"] as! String
+                         self.questionAnswerNumbers[number] = (String(self.userData[number]["AnswerNumber"] as! Int))
+                    }
+                    else
+                    {
+                        self.questionTexts.append(self.userData[number]["QuestionText"]  as! String)
+                        self.questionTimes.append(creationDateString)
+                        self.questionChannels.append(self.userData[number]["ChannelName"] as! String)
+                        self.questionPosters.append(self.userData[number]["QuestionPoster"] as! String)
+                        self.questionAnswerNumbers.append(String(self.userData[number]["AnswerNumber"] as! Int))
+                    }
+                    
+                }
+                self.dismiss(animated: true)
+                {
+                }
+                
+            } else {
+                
+                self.dismiss(animated: true)
+                {
+                    self.performSegue(withIdentifier: "pastQuestionsToNoData", sender: self)
+                    self.noDataOn = true
+                }
+            }
+            self.myPastQuestionTableView.reloadData()
+        }
+        
+    }
+    var noDataOn = false
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        let tabBarIndex = tabBarController.selectedIndex
+        print("rayayan")
+        if tabBarIndex != 4 && noDataOn
+        {
+            dismiss(animated:true, completion:nil)
+            noDataOn = false
+        }
+   }
+
+    
+    
+    } else {
+    
+    lazy var refresher : UIRefreshControl =
+       {
+           let refreshControl = UIRefreshControl()
+           refreshControl.addTarget(self, action: #selector(requestData), for: .valueChanged)
+           return refreshControl
+       }()
+       @objc func requestData()
+       {
+        answerTexts = []
+        answerPosters = []
+        answerData = []
+        answerLikes = []
+        answerReplies = []
+        answerTimes = []
+        answerOrder = []
+        replyCreationTimes = []
+        replierIDs = []
+        replieTexts = []
+        answerTextsStorage = []
+        self.pastAnswersTableView.reloadData()
+       self.genAnswerList()
+        Timer.scheduledTimer(withTimeInterval: 3, repeats: false)
+        {
+            (Timer) in
+            self.pastAnswersTableView.reloadData()
+            self.refresher.endRefreshing()
+            Timer.invalidate()
+        }
+
+           
+       }
+    
+    lazy var functions = Functions.functions()
+    override func viewDidLoad()
+    {
+        super.viewDidLoad()
+        self.tabBarController?.delegate = self
+        pastAnswersTableView.delegate = self
+        pastAnswersTableView.dataSource = self
+        pastAnswersTableView.refreshControl = refresher
+        self.genAnswerList()
+        
+        
+
+    }
+    var noDataOn = false
+    
+    override func viewDidAppear(_ animated: Bool)
+    {
+        super.viewDidAppear(animated)
+        answerTexts = []
+        answerPosters = []
+        answerData = []
+        answerLikes = []
+        answerReplies = []
+        answerTimes = []
+        answerOrder = []
+        replyCreationTimes = []
+        replierIDs = []
+        replieTexts = []
+        answerTextsStorage = []
+        
+        self.genAnswerList()
+    }
+    var totalAnswerCount = 0
+    var answerTexts: [String] = []
+    var answerPosters: [String] = []
+    var answerData: [[String: Any]] = []
+    var answerLikes:[Int] = []
+    var answerReplies:[Int] = []
+    var answerTimes:[String] = []
+    var answerOrder:[String] = []
+    var replyCreationTimes:[String] = []
+    var replierIDs:[String] = []
+    var replieTexts:[String] = []
+    var answerTextsStorage:[String] = []
+    func genAnswerList()
+    {
+        
+        self.performSegue(withIdentifier: "pastAnswersToLoading", sender: self)
+
+        answerTexts = []
+        answerPosters = []
+        answerData = []
+        answerLikes = []
+        answerReplies = []
+        answerTimes = []
+        answerOrder = []
+        replyCreationTimes = []
+        replierIDs = []
+        replieTexts = []
+        answerTextsStorage = []
+        self.pastAnswersTableView.reloadData()
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        totalAnswerCount = 0
+        print("invoked")
+        let channelName = UserData.currentChannel
+        let questionID = UserData.currentQuestion
+        print(questionID)
+        print(channelName)
+        print("printing")
+        functions.httpsCallable("genAnswerList").call(["channelName": channelName,"questionID":questionID,"userName":UserData.currentUser])
+        {
+            (result, error) in
+            if let error = error as NSError?
+            {
+                if error.domain == FunctionsErrorDomain
+                {
+                    let code = FunctionsErrorCode(rawValue: error.code)
+                    let message = error.localizedDescription
+                    let details = error.userInfo[FunctionsErrorDetailsKey]
+                }
+            }
+            //results in the form of an array of json objects
+            if let answerList = (result?.data as? [String: Any])?["answerList"] as? [[String:Any]]
+            {
+                //assigning local variable channelsData to channels list
+                self.answerData = answerList
+
+            }
+            if(self.answerData.count > 0)
+            {
+                self.answerOrder.removeAll()
+                for number in 0...self.answerData.count-1
+                {
+                    
+                        let creationTime = self.answerData[number]["CreationTime"] as! [String: Double]
+                        let seconds = creationTime["_seconds"] as! Double+pow(creationTime["_nanoseconds"] as! Double, -9.0)
+                        let creationDate = NSDate(timeIntervalSince1970: seconds)
+                        let creationDateString = formatter.string(from: creationDate as Date)
+                        if  number <= self.answerTexts.count-1
+                        {
+                            self.answerTexts[number] = self.answerData[number]["AnswerText"] as! String
+                            self.answerTextsStorage[number] = self.answerData[number]["AnswerText"] as! String
+                            self.answerPosters[number] = self.answerData[number]["ResponderID"] as! String
+                            if((self.answerData[number]["Replies"] as! [Any]).count != 0)
+                            {
+                                self.answerReplies[number] = (self.answerData[number]["Replies"] as! [Any]).count
+                            }
+                            else
+                            {
+                                self.answerReplies[number] = 0
+                            }
+                            self.answerTimes[number] = creationDateString
+                            
+                        }
+                        else
+                        {
+                            self.answerTexts.append(self.answerData[number]["AnswerText"] as! String)
+                            self.answerTextsStorage.append(self.answerData[number]["AnswerText"] as! String)
+                            self.answerPosters.append(self.answerData[number]["ResponderID"] as! String)
+                            if((self.answerData[number]["Replies"] as! [Any]).count != 0)
+                            {
+                                self.answerReplies.append((self.answerData[number]["Replies"] as! [Any]).count)
+                            }
+                            else
+                            {
+                                self.answerReplies.append(0)
+                            }
+                            self.answerTimes.append(creationDateString)
+                        }
+                    self.answerOrder.append("Answer")
+                    self.totalAnswerCount+=1
+
+                    print("answerReplies")
+                    print(self.answerReplies[number])
+                    if(self.answerReplies[number]>0)
+                    {
+                        //for every reply in the replies array in an answer
+                        for numbers in 0...self.answerReplies[number]-1
+                        {
+                            self.answerOrder.append("Reply")
+                            let Reply = (self.answerData[number]["Replies"] as! [Any])[numbers] as! [String:Any]
+                            let replyCreationTime = Reply["CreationTime"] as! [String: Double]
+                            let seconds = replyCreationTime["_seconds"] as! Double+pow(replyCreationTime["_nanoseconds"] as! Double, -9.0)
+                            let replyCreationDate = NSDate(timeIntervalSince1970: seconds)
+                            let replyCreationDateString = formatter.string(from: replyCreationDate as Date)
+                            self.replieTexts.append(Reply["ReplieText"] as! String)
+                            self.replyCreationTimes.append(replyCreationDateString)
+                            self.replierIDs.append(Reply["ReplierID"] as! String)
+                        }
+                        
+                    }
+                    
+                    
+                    
+                    
+                    
+                }
+                
+                
+                self.dismiss(animated: true) {
+
+                }
+            }
+            else {
+                self.dismiss(animated: true) {
+                    self.performSegue(withIdentifier: "pastAnswersToNoData", sender: self)
+                    self.noDataOn = true
+                }
+                
+            }
+            
+            self.pastAnswersTableView.reloadData()
+            print(self.answerTexts)
+        }
+    }
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return answerOrder.count
+    }
+var answerCount  = -1
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell
+    {
+        let rows = answerOrder.count
+        print("DUG")
+        print(indexPath.row)
+        
+        if(answerOrder.count > 0 && answerOrder[indexPath.row] == "Answer")
+            {
+                let answerCell = tableView.dequeueReusableCell(withIdentifier: "pastAnswers", for: indexPath) as! PastAnswers2TableViewCell
+                
+                    if(self.answerPosters.count > 0)
+                {
+                    
+                    if self.answerReplies[0] == 0
+                    {
+                        answerCell.triangle.alpha = 0
+                    }
+                   print("lol")
+                    
+                    answerCell.username.text = nil
+                    answerCell.Answer.text = nil
+                    answerCell.AnsweredTime.text = nil
+                    answerCell.commentNumber.text = nil
+                   
+
+                    answerCell.username.text = self.answerPosters[0]
+                    answerCell.Answer.text = self.answerTexts[0]
+
+                    answerCell.AnsweredTime.text = self.answerTimes[0]
+                    answerCell.AnsweredTime.textColor = UIColor.black
+                    answerCell.username.textColor = UIColor.black
+                    answerCell.commentNumber.text = String(self.answerReplies[0])
+                    self.answerReplies.remove(at: 0)
+                    self.answerPosters.remove(at: 0)
+                    self.answerTexts.remove(at: 0)
+                    self.answerTimes.remove(at: 0)
+                    self.answerCount+=1
+                    }
+                    
+                
+                
+                print(answerCell.Answer.text)
+                
+                return answerCell
+                
+                //cell.likeNumber.text = self.answerLikes[indexPath.row]
+                
+            }
+            else// if answerOrder[indexPath.row] == "Reply"
+            {
+                let replyCell = tableView.dequeueReusableCell(withIdentifier: "pastReply", for: indexPath) as! pastRepliesCell
+                if replieTexts.count > 0 &&  answerCount >= 0 &&  answerCount <= totalAnswerCount-1
+                {
+                    replyCell.comment.text = nil
+                    replyCell.Timestamp.text = nil
+                    replyCell.User.text = nil
+                    
+                        print("lol")
+                        var currentID = answerCount
+                    
+                        replyCell.answerID = self.answerTextsStorage[answerCount]
+                    
+                        replyCell.comment.text = self.replieTexts[0]
+
+                        replyCell.Timestamp.text = self.replyCreationTimes[0]
+                        replyCell.User.text = self.replierIDs[0]
+                        self.replieTexts.remove(at: 0)
+                        self.replyCreationTimes.remove(at: 0)
+                        self.replierIDs.remove(at: 0)
+                    
+                    
+                }
+                print(replyCell.comment.text)
+                return replyCell
+            }
+        
+                    
+    
+    }
+    
+    func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
+
+        if answerOrder.count > 0 && answerOrder[indexPath.row] == "Reply"
+            {
+                return 133
+            }
+            else
+            {
+                return 200
+            }
+    }
+    
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath)
+    {
+        
+        pastAnswersTableView.deselectRow(at: indexPath, animated: true)
+        if answerOrder.count > 0
+        {
+            if answerOrder[indexPath.row] == "Answer"
+            {
+                var answer = 0
+                for number in 0...indexPath.row
+                {
+                    if answerOrder[number] == "Answer"
+                    {
+                        answer+=1
+                    }
+                }
+                UserData.currentAnswer = answerTextsStorage[answer-1]
+                
+                performSegue(withIdentifier: "showdetail", sender: self)
+            }
+        }
+        
+    }
+
+
+            
+            
+            
+func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+    let tabBarIndex = tabBarController.selectedIndex
+    print("rayayan")
+    if tabBarIndex != 4 && noDataOn
+    {
+        dismiss(animated:true, completion:nil)
+        noDataOn = false
+    }
+}
+
+    
+    
+    
+    
+}
+
+    
+
+}
+
